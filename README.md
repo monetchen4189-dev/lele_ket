@@ -1,81 +1,135 @@
-# KET 拼写乐园（7 月底考试冲刺）
+# KET 单词拼写打卡网站（7 月底考试冲刺版）
 
-这是一个给孩子用的 KET 单词拼写打卡网页，核心目标是：
+这是一个面向孩子的 KET 词汇打卡网页，核心目标是：
 
-- 看中文拼英文（主交互）
-- 每日新词 + 旧词复习（艾宾浩斯记忆曲线）
-- 每日统计 + 总体进度 + 激励徽章
+1. **高频词拼写检查**
+2. **写作常见词形变化**（动词过去式、名词复数）
+3. **基础写作能力**（组词、选择、句子填空）
 
-## 项目结构
+## 高频词挑选思路
 
-- `index.html`：页面结构
-- `styles.css`：儿童友好可视化样式
-- `word-config.js`：单词和学习计划配置（可扩展）
-- `app.js`：核心逻辑（出题、提示、统计、复习计划、奖励）
+本项目内置了 KET 写作中最常出现的主题词（学校、家庭、活动、城市、出行等）和连接词。
 
-## 高频词配置（可扩展）
+- 名词（20）: school, teacher, friend, family, holiday, homework, weekend, book, food, sport, weather, birthday, party, city, shop, park, movie, music, computer, bus
+- 动词（20）: go, come, play, study, watch, visit, help, start, finish, enjoy, want, need, like, love, buy, take, meet, travel, cook, clean
+- 形容词（10）: happy, excited, tired, easy, difficult, important, delicious, beautiful, interesting, busy
+- 连接词（10）: and, but, because, so, then, after, before, when, first, finally
 
-所有词汇都在 `word-config.js`，按分类组织并可随时扩展。
+> 建议：先确保这些词「看见会写」，再做句子迁移，最后做写作任务（邮件/明信片/便条）。
 
-当前重点新增了**日期时间高频词**：
-- 星期：Monday ~ Sunday
-- 月份：January ~ December
-- 时间词：today, tomorrow, yesterday, week, month, year
+## 已实现练习形式
 
-你可以直接在 `word-config.js` 里修改：
-- `dailyNewWords`：每天新词数
-- `dailyReviewWords`：每天复习词数
-- `maxDailyWords`：每天最多学习词数
-- `intervals`：艾宾浩斯复习间隔（默认 `1,2,4,7,15` 天）
+- 拼写检查（输入正确单词）
+- 动词过去式
+- 名词复数
+- 造句/选择题
+- 组词配对（collocation）
+- 每日打卡与连续天数统计（localStorage）
+- 题目提交后自动锁定，避免重复点击导致重复计数
+- 输入题支持回车提交
 
-## 主要交互流程（拼写）
+## 如何运行
 
-1. 显示中文释义（例如“星期三”）
-2. 孩子输入英文拼写
-3. 可点击“提示一下”获取更多提示
-4. 拼错后会自动给更多提示
-5. 拼对后显示奖励并可进入下一个单词
-
-## 统计与激励
-
-- **每日统计**：完成数、正确率、新词/复习、当日得分
-- **总体进度**：累计掌握词数、连续学习天数
-- **激励机制**：积分 + 徽章墙
-
-## 本地运行
+这是纯前端静态页面，无需安装依赖。
 
 ```bash
-cd /workspace/lele_ket
+# 在项目目录执行
 python3 -m http.server 8000
 # 浏览器打开 http://localhost:8000
 ```
 
-## 推送到 GitHub
+## 如何把代码 push 到 GitHub
+
+如果你看到“代码没有 push 上去”，通常是本地仓库还没配置 `origin`，或者没有执行 push。
+
+### 手动命令（推荐）
 
 ```bash
-cd /workspace/lele_ket
-bash scripts/push_to_github.sh
-```
+git branch --show-current
+git remote -v
 
-如果提示没有 `origin`，先执行：
-
-```bash
+# 如果没有 origin，先添加
 git remote add origin <你的仓库URL>
+
+# 推送当前分支（首次要 -u）
 git push -u origin <当前分支名>
 ```
 
-## Merge conflict 快速处理
-
-如果 GitHub 提示有 merge conflict，可以先在本地拉取目标分支并处理：
+### 一键脚本
 
 ```bash
-git fetch origin
-git checkout work
-git merge origin/main
+bash scripts/push_to_github.sh
 ```
 
-处理冲突后，运行下面的检查脚本确认没有残留冲突标记：
+脚本会自动检查 `origin` 是否存在：
+- 如果未配置，会提示你先执行 `git remote add origin ...`
+- 如果已配置，会直接推送当前分支
+
+## GitHub Pages 部署与访问
+
+项目已添加自动部署工作流：`.github/workflows/deploy-pages.yml`。
+
+> 当前工作流已改为：监听所有分支 push，但只在“仓库默认分支”上执行 deploy，避免分支名不一致导致不触发。
+
+### 一次性设置（仓库管理员）
+
+1. 打开仓库 **Settings → Pages**。
+2. 在 **Build and deployment** 里选择 **Source = GitHub Actions**。
+3. 确认仓库默认分支（Default branch）正确，并把最新提交 push 到该默认分支。
+
+### 一般多久能 ready？
+
+- 首次部署通常 **2~10 分钟**。
+- 偶发队列拥堵时可能到 **15 分钟左右**。
+- 每次后续更新通常 **1~5 分钟**。
+
+### 现在“还没 access”的常见原因
+
+- 仓库是 **Private**：访问者需要仓库权限；免费计划下 private repo 的 Pages 可能受限。
+- 还没在 Settings 里把 Source 设为 **GitHub Actions**。
+- workflow 只监听了 `main`，但仓库默认分支不是 `main`（例如 `master` 或 `work`）。
+- Actions workflow 失败（可在 **Actions** 页查看 `Deploy static site to GitHub Pages`）。
+- 访问 URL 错误：应为
+  `https://<username>.github.io/<repo-name>/`
+
+
+### 本地一键自检（推荐）
 
 ```bash
-bash scripts/check_merge_conflicts.sh
+bash scripts/check_pages_setup.sh
 ```
+
+这个脚本会检查：
+- 关键文件是否存在
+- Pages workflow 关键步骤是否齐全
+- `app.js` 语法是否通过
+- 并给出 Pages 访问失败的下一步排查建议
+
+### 快速自查
+
+1. Actions 页是否出现绿色 ✅ `Deploy to GitHub Pages`。
+2. Settings → Pages 里是否显示 `Your site is live at ...`。
+3. 确认默认分支（Default branch）与 workflow 触发分支一致。
+4. 使用无痕窗口访问一次，排除缓存。
+
+## 适合用什么工具实现？
+
+### 1) 当前阶段（最快上线）
+- **HTML + CSS + JavaScript（当前方案）**
+- 优势：开发快、部署简单、几乎零成本（可直接放 GitHub Pages / Netlify）
+
+### 2) 下一阶段（需要账号与数据统计）
+- **前端**: React / Vue
+- **后端**: Supabase（数据库 + 登录）或 Firebase
+- 适合做：班级排名、错词本、多设备同步
+
+### 3) AI 增强阶段（可选）
+- 接入语音朗读（TTS）与语音拼写检查（ASR）
+- 接入 LLM 做「句子润色 + 错误解释」
+
+## 面向 7 月底 KET 的节奏建议（8 周）
+
+- 周 1-2：高频词拼写 + 过去式/复数
+- 周 3-4：搭配 + 句子填空
+- 周 5-6：主题写作（My weekend / My best friend / Holiday plan）
+- 周 7-8：整套限时训练 + 错词回炉

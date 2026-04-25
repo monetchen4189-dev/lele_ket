@@ -17,7 +17,7 @@ fi
 echo
 
 echo "[2/6] Required files"
-for f in "$ROOT_DIR/index.html" "$ROOT_DIR/app.js" "$ROOT_DIR/styles.css" "$ROOT_DIR/word-config.js" "$WORKFLOW_FILE"; do
+for f in "$ROOT_DIR/index.html" "$ROOT_DIR/app.js" "$ROOT_DIR/styles.css" "$WORKFLOW_FILE"; do
   if [[ -f "$f" ]]; then
     echo "✅ exists: ${f#$ROOT_DIR/}"
   else

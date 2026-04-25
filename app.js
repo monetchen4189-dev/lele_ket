@@ -1,347 +1,303 @@
-const config = window.KET_CONFIG;
-
-const STORAGE_KEYS = {
-  progress: "ket_word_progress_v2",
-  dailyStats: "ket_daily_stats_v2",
-  profile: "ket_profile_v2"
+const wordBank = {
+  nouns: [
+    "school", "teacher", "friend", "family", "holiday", "homework", "weekend", "book", "food", "sport",
+    "weather", "birthday", "party", "city", "shop", "park", "movie", "music", "computer", "bus"
+  ],
+  verbs: [
+    "go", "come", "play", "study", "watch", "visit", "help", "start", "finish", "enjoy",
+    "want", "need", "like", "love", "buy", "take", "meet", "travel", "cook", "clean"
+  ],
+  adjectives: [
+    "happy", "excited", "tired", "easy", "difficult", "important", "delicious", "beautiful", "interesting", "busy"
+  ],
+  connectors: [
+    "and", "but", "because", "so", "then", "after", "before", "when", "first", "finally"
+  ]
 };
 
-const el = {
-  dailyTarget: document.getElementById("dailyTarget"),
-  dailyDone: document.getElementById("dailyDone"),
-  dailyBar: document.getElementById("dailyBar"),
-  dailyAccuracy: document.getElementById("dailyAccuracy"),
-  dailyMix: document.getElementById("dailyMix"),
-  dailyPoints: document.getElementById("dailyPoints"),
-  masteredCount: document.getElementById("masteredCount"),
-  totalWords: document.getElementById("totalWords"),
-  streakDays: document.getElementById("streakDays"),
-  badgeCount: document.getElementById("badgeCount"),
-  promptTitle: document.getElementById("promptTitle"),
-  promptMeta: document.getElementById("promptMeta"),
-  hintArea: document.getElementById("hintArea"),
-  spellingInput: document.getElementById("spellingInput"),
-  feedback: document.getElementById("feedback"),
-  celebrate: document.getElementById("celebrate"),
-  startBtn: document.getElementById("startBtn"),
-  hintBtn: document.getElementById("hintBtn"),
-  submitBtn: document.getElementById("submitBtn"),
-  nextBtn: document.getElementById("nextBtn"),
-  badges: document.getElementById("badges"),
-  wordList: document.getElementById("wordList"),
-  wordConfigSummary: document.getElementById("wordConfigSummary")
+const irregularPast = {
+  go: "went",
+  come: "came",
+  buy: "bought",
+  take: "took",
+  meet: "met"
 };
+
+const irregularPlural = {
+  family: "families",
+  city: "cities"
+};
+
+const sentenceTemplates = [
+  { q: "I ___ my homework after school.", answer: "finish", options: ["finish", "finishes", "finished"] },
+  { q: "We went to the park ___ it was sunny.", answer: "because", options: ["because", "but", "before"] },
+  { q: "My birthday party was very ___.", answer: "exciting", options: ["exciting", "excite", "excitedly"] },
+  { q: "She ___ a new book yesterday.", answer: "bought", options: ["buy", "bought", "buys"] }
+];
+
+const collocations = [
+  ["do", "homework"],
+  ["have", "breakfast"],
+  ["play", "football"],
+  ["watch", "a movie"],
+  ["take", "a bus"]
+];
 
 const state = {
-  progress: JSON.parse(localStorage.getItem(STORAGE_KEYS.progress) || "{}"),
-  dailyStats: JSON.parse(localStorage.getItem(STORAGE_KEYS.dailyStats) || "{}"),
-  profile: JSON.parse(localStorage.getItem(STORAGE_KEYS.profile) || "{\"points\":0,\"streak\":0,\"lastPracticeDate\":null,\"badges\":[]}"),
-  today: getLocalDateString(),
-  queue: [],
-  queueMeta: [],
+  mode: null,
+  done: Number(localStorage.getItem("doneCount") || 0),
+  streak: Number(localStorage.getItem("streakCount") || 0),
+  lastCheckin: localStorage.getItem("lastCheckin") || null,
   current: null,
-  currentHintLevel: 0,
-  currentResolved: false
+  answered: false
 };
 
-function getLocalDateString(date = new Date()) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+const modeConfigs = [
+  { key: "spelling", label: "拼写检查" },
+  { key: "past", label: "动词过去式" },
+  { key: "plural", label: "名词复数" },
+  { key: "sentence", label: "造句/选择" },
+  { key: "matching", label: "组词配对" }
+];
+
+const doneCountEl = document.getElementById("doneCount");
+const streakCountEl = document.getElementById("streakCount");
+const checkinBtn = document.getElementById("checkinBtn");
+const modeButtonsEl = document.getElementById("modeButtons");
+const exerciseTitleEl = document.getElementById("exerciseTitle");
+const exerciseHintEl = document.getElementById("exerciseHint");
+const exerciseBodyEl = document.getElementById("exerciseBody");
+const feedbackEl = document.getElementById("feedback");
+const nextBtn = document.getElementById("nextBtn");
+const wordGridEl = document.getElementById("wordGrid");
+
+function randomItem(list) {
+  return list[Math.floor(Math.random() * list.length)];
 }
 
-function addDays(dateStr, days) {
-  const date = new Date(`${dateStr}T00:00:00`);
-  date.setDate(date.getDate() + days);
-  return getLocalDateString(date);
+function getLocalDateString(baseDate = new Date()) {
+  const date = new Date(baseDate);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
-function shuffle(arr) {
-  return [...arr].sort(() => Math.random() - 0.5);
+function updateDashboard() {
+  doneCountEl.textContent = state.done;
+  streakCountEl.textContent = state.streak;
 }
 
-function persist() {
-  localStorage.setItem(STORAGE_KEYS.progress, JSON.stringify(state.progress));
-  localStorage.setItem(STORAGE_KEYS.dailyStats, JSON.stringify(state.dailyStats));
-  localStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(state.profile));
-}
+function renderWordBank() {
+  const labels = {
+    nouns: "名词（写作常用）",
+    verbs: "动词（写作常用）",
+    adjectives: "形容词",
+    connectors: "连接词"
+  };
 
-function getWordProgress(wordId) {
-  if (!state.progress[wordId]) {
-    state.progress[wordId] = {
-      stage: 0,
-      nextReview: state.today,
-      correct: 0,
-      wrong: 0,
-      attempts: 0,
-      mastered: false
-    };
-  }
-  return state.progress[wordId];
-}
-
-function getTodayStat() {
-  if (!state.dailyStats[state.today]) {
-    state.dailyStats[state.today] = {
-      attempted: 0,
-      correct: 0,
-      newDone: 0,
-      reviewDone: 0,
-      points: 0
-    };
-  }
-  return state.dailyStats[state.today];
-}
-
-function buildDailyPlan() {
-  const due = [];
-  const newWords = [];
-
-  config.words.forEach((word) => {
-    const p = state.progress[word.id];
-    if (!p || p.attempts === 0) {
-      newWords.push(word);
-      return;
-    }
-    if (!p.mastered && p.nextReview <= state.today) {
-      due.push(word);
-    }
-  });
-
-  const reviewPick = shuffle(due).slice(0, config.schedule.dailyReviewWords);
-  const remaining = Math.max(0, config.schedule.maxDailyWords - reviewPick.length);
-  const newPick = newWords.slice(0, Math.min(config.schedule.dailyNewWords, remaining));
-
-  state.queue = [...reviewPick, ...newPick];
-  state.queueMeta = state.queue.map((word) => ({ wordId: word.id, type: reviewPick.find((w) => w.id === word.id) ? "review" : "new" }));
-
-  if (state.queue.length === 0) {
-    state.queue = shuffle(config.words).slice(0, config.schedule.dailyNewWords);
-    state.queueMeta = state.queue.map((word) => ({ wordId: word.id, type: "new" }));
-  }
-}
-
-function renderWordConfig() {
-  const grouped = config.words.reduce((acc, word) => {
-    if (!acc[word.category]) acc[word.category] = [];
-    acc[word.category].push(word);
-    return acc;
-  }, {});
-
-  el.wordConfigSummary.innerHTML = `
-    <p>总词数：<strong>${config.words.length}</strong>，每日新词：<strong>${config.schedule.dailyNewWords}</strong>，每日复习：<strong>${config.schedule.dailyReviewWords}</strong>，最多：<strong>${config.schedule.maxDailyWords}</strong></p>
-  `;
-
-  el.wordList.innerHTML = Object.entries(grouped)
+  wordGridEl.innerHTML = Object.entries(wordBank)
     .map(([group, words]) => `
-      <details class="word-group">
-        <summary>${group}（${words.length}）</summary>
-        <ul>${words.map((w) => `<li>${w.zh} - ${w.en}</li>`).join("")}</ul>
-      </details>
+      <article class="word-group">
+        <h3>${labels[group]}</h3>
+        <ul>${words.map((w) => `<li>${w}</li>`).join("")}</ul>
+      </article>
     `)
     .join("");
 }
 
-function renderBadges() {
-  const achieved = state.profile.badges;
-  el.badges.innerHTML = config.rewards.badges
-    .map((badge) => achieved.includes(badge.id)
-      ? `<span class="badge">🏅 ${badge.name}</span>`
-      : `<span class="badge">🔒 ${badge.name}（${badge.threshold}⭐）</span>`)
+function renderModes() {
+  modeButtonsEl.innerHTML = modeConfigs
+    .map((m) => `<button class="mode-btn ${state.mode === m.key ? "active" : ""}" data-mode="${m.key}">${m.label}</button>`)
     .join("");
+
+  modeButtonsEl.querySelectorAll("button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.mode = btn.dataset.mode;
+      renderModes();
+      nextQuestion();
+    });
+  });
 }
 
-function renderStats() {
-  const todayStat = getTodayStat();
-  const done = todayStat.attempted;
-  const target = state.queue.length || config.schedule.maxDailyWords;
+function markAnswer(correct, tip = "") {
+  if (state.answered) return;
+  state.answered = true;
+  state.done += 1;
+  localStorage.setItem("doneCount", String(state.done));
+  updateDashboard();
 
-  el.dailyTarget.textContent = String(target);
-  el.dailyDone.textContent = String(Math.min(done, target));
-  el.dailyBar.style.width = `${target === 0 ? 0 : Math.min(100, Math.round((done / target) * 100))}%`;
-
-  const acc = todayStat.attempted === 0 ? 0 : Math.round((todayStat.correct / todayStat.attempted) * 100);
-  el.dailyAccuracy.textContent = `${acc}%`;
-  el.dailyMix.textContent = `${todayStat.newDone} / ${todayStat.reviewDone}`;
-  el.dailyPoints.textContent = String(todayStat.points);
-
-  const mastered = Object.values(state.progress).filter((p) => p.mastered).length;
-  el.masteredCount.textContent = String(mastered);
-  el.totalWords.textContent = String(config.words.length);
-  el.streakDays.textContent = String(state.profile.streak || 0);
-  el.badgeCount.textContent = String(state.profile.badges.length);
+  feedbackEl.className = correct ? "good" : "bad";
+  feedbackEl.textContent = correct ? "✅ 正确！" : `❌ 再试试。${tip}`;
+  lockExercise();
+  nextBtn.classList.remove("hidden");
 }
 
-function getHintText(word, level) {
-  const dynamicHints = [
-    `这个词有 ${word.en.length} 个字母。`,
-    `首字母是 ${word.en[0]}。`,
-    `结尾字母是 ${word.en[word.en.length - 1]}。`
-  ];
-  const hintPool = [...(word.hints || []), ...dynamicHints];
-  return hintPool[Math.min(level, hintPool.length - 1)];
+function lockExercise() {
+  exerciseBodyEl.querySelectorAll("input, button").forEach((el) => {
+    el.disabled = true;
+  });
 }
 
-function showCurrentWord() {
-  if (state.queue.length === 0) {
-    el.promptTitle.textContent = "🎉 今日计划完成！";
-    el.promptMeta.textContent = "你已经完成今天的背诵任务，明天继续加油！";
-    el.hintArea.classList.add("hidden");
-    el.submitBtn.disabled = true;
-    el.hintBtn.disabled = true;
-    el.nextBtn.disabled = true;
-    el.spellingInput.disabled = true;
-    return;
-  }
-
-  state.current = state.queue[0];
-  state.currentHintLevel = 0;
-  state.currentResolved = false;
-  el.spellingInput.value = "";
-  el.spellingInput.disabled = false;
-
-  const meta = state.queueMeta[0];
-  const typeLabel = meta.type === "new" ? "🆕 新词" : "🔁 复习";
-  el.promptTitle.textContent = `请拼写：${state.current.zh}`;
-  el.promptMeta.textContent = `${typeLabel} | 分类：${state.current.category}`;
-  el.feedback.textContent = "";
-  el.feedback.className = "feedback";
-  el.celebrate.textContent = "";
-
-  el.hintArea.textContent = getHintText(state.current, 0);
-  el.hintArea.classList.remove("hidden");
-
-  el.hintBtn.disabled = false;
-  el.submitBtn.disabled = false;
-  el.nextBtn.disabled = true;
+function getPast(word) {
+  if (irregularPast[word]) return irregularPast[word];
+  if (word.endsWith("e")) return `${word}d`;
+  return `${word}ed`;
 }
 
-function updateStreakOnFirstAttempt() {
-  if (state.profile.lastPracticeDate === state.today) return;
-
-  const yesterday = addDays(state.today, -1);
-  if (state.profile.lastPracticeDate === yesterday) {
-    state.profile.streak += 1;
-  } else {
-    state.profile.streak = 1;
-  }
-  state.profile.lastPracticeDate = state.today;
+function getPlural(word) {
+  if (irregularPlural[word]) return irregularPlural[word];
+  if (word.endsWith("y")) return `${word.slice(0, -1)}ies`;
+  return `${word}s`;
 }
 
-function maybeUnlockBadges() {
-  config.rewards.badges.forEach((badge) => {
-    if (state.profile.points >= badge.threshold && !state.profile.badges.includes(badge.id)) {
-      state.profile.badges.push(badge.id);
-      el.celebrate.textContent = `🎊 解锁徽章：${badge.name}`;
+function buildSpelling() {
+  const word = randomItem([...wordBank.nouns, ...wordBank.verbs, ...wordBank.adjectives]);
+  const hidden = word.slice(0, 1) + "_".repeat(word.length - 2) + word.slice(-1);
+  state.current = { answer: word };
+
+  exerciseTitleEl.textContent = "拼写检查";
+  exerciseHintEl.textContent = `请根据提示拼出完整单词：${hidden}`;
+  exerciseBodyEl.innerHTML = `
+    <label>你的答案：<input id="answerInput" type="text" autocomplete="off" /></label>
+    <button id="submitBtn" type="button">提交</button>
+  `;
+
+  document.getElementById("submitBtn").addEventListener("click", () => {
+    const value = document.getElementById("answerInput").value.trim().toLowerCase();
+    markAnswer(value === state.current.answer, `正确拼写是 ${state.current.answer}`);
+  });
+  document.getElementById("answerInput").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      document.getElementById("submitBtn").click();
     }
   });
 }
 
-function onCorrect(isFirstTry) {
-  const todayStat = getTodayStat();
-  const meta = state.queueMeta[0];
-  const p = getWordProgress(state.current.id);
+function buildPast() {
+  const word = randomItem(wordBank.verbs);
+  state.current = { answer: getPast(word) };
 
-  p.attempts += 1;
-  p.correct += 1;
-  p.stage = Math.min(config.schedule.masteredStage, p.stage + 1);
-  p.mastered = p.stage >= config.schedule.masteredStage;
+  exerciseTitleEl.textContent = "动词过去式";
+  exerciseHintEl.textContent = `请写出动词 ${word} 的过去式`;
+  exerciseBodyEl.innerHTML = `
+    <label>过去式：<input id="answerInput" type="text" autocomplete="off" /></label>
+    <button id="submitBtn" type="button">提交</button>
+  `;
 
-  const interval = config.schedule.intervals[Math.min(p.stage - 1, config.schedule.intervals.length - 1)] || 1;
-  p.nextReview = addDays(state.today, interval);
-
-  todayStat.attempted += 1;
-  todayStat.correct += 1;
-  if (meta.type === "new") todayStat.newDone += 1;
-  if (meta.type === "review") todayStat.reviewDone += 1;
-
-  const gain = config.rewards.correctPoint + (isFirstTry ? config.rewards.firstTryBonus : 0);
-  todayStat.points += gain;
-  state.profile.points += gain;
-
-  updateStreakOnFirstAttempt();
-  maybeUnlockBadges();
-
-  el.feedback.className = "feedback good";
-  el.feedback.textContent = `✅ 太棒啦！正确答案是 ${state.current.en}（+${gain}⭐）`;
-  el.celebrate.textContent = "✨ 继续保持，你是拼写小高手！";
-
-  state.currentResolved = true;
-  el.nextBtn.disabled = false;
-  el.submitBtn.disabled = true;
-  el.hintBtn.disabled = true;
-  el.spellingInput.disabled = true;
-
-  persist();
-  renderStats();
-  renderBadges();
+  document.getElementById("submitBtn").addEventListener("click", () => {
+    const value = document.getElementById("answerInput").value.trim().toLowerCase();
+    markAnswer(value === state.current.answer, `正确答案是 ${state.current.answer}`);
+  });
+  document.getElementById("answerInput").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      document.getElementById("submitBtn").click();
+    }
+  });
 }
 
-function onWrong() {
-  const p = getWordProgress(state.current.id);
-  p.wrong += 1;
-  p.attempts += 1;
+function buildPlural() {
+  const word = randomItem(wordBank.nouns);
+  state.current = { answer: getPlural(word) };
 
-  state.currentHintLevel += 1;
-  el.hintArea.textContent = getHintText(state.current, state.currentHintLevel);
-  el.hintArea.classList.remove("hidden");
+  exerciseTitleEl.textContent = "名词复数";
+  exerciseHintEl.textContent = `请写出名词 ${word} 的复数形式`;
+  exerciseBodyEl.innerHTML = `
+    <label>复数：<input id="answerInput" type="text" autocomplete="off" /></label>
+    <button id="submitBtn" type="button">提交</button>
+  `;
 
-  el.feedback.className = "feedback bad";
-  el.feedback.textContent = "❌ 还不对哦，再想想看。你可以看提示后再试一次！";
-
-  persist();
+  document.getElementById("submitBtn").addEventListener("click", () => {
+    const value = document.getElementById("answerInput").value.trim().toLowerCase();
+    markAnswer(value === state.current.answer, `正确答案是 ${state.current.answer}`);
+  });
+  document.getElementById("answerInput").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      document.getElementById("submitBtn").click();
+    }
+  });
 }
 
-function handleSubmit() {
-  if (!state.current || state.currentResolved) return;
-  const input = el.spellingInput.value.trim().toLowerCase();
-  if (!input) {
-    el.feedback.className = "feedback bad";
-    el.feedback.textContent = "请先输入拼写再提交。";
+function buildSentence() {
+  const q = randomItem(sentenceTemplates);
+  state.current = { answer: q.answer };
+
+  exerciseTitleEl.textContent = "造句/选择";
+  exerciseHintEl.textContent = q.q;
+  exerciseBodyEl.innerHTML = `
+    <div class="choice-list">
+      ${q.options.map((option) => `<button class="choice-btn" data-value="${option}">${option}</button>`).join("")}
+    </div>
+  `;
+
+  exerciseBodyEl.querySelectorAll(".choice-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const selected = btn.dataset.value;
+      markAnswer(selected === state.current.answer, `正确答案是 ${state.current.answer}`);
+    });
+  });
+}
+
+function buildMatching() {
+  const pair = randomItem(collocations);
+  const rightWords = [pair[1], ...collocations.filter((c) => c[1] !== pair[1]).slice(0, 2).map((c) => c[1])]
+    .sort(() => Math.random() - 0.5);
+
+  state.current = { answer: pair[1] };
+  exerciseTitleEl.textContent = "组词配对";
+  exerciseHintEl.textContent = `请选择与 "${pair[0]}" 搭配最常见的词组`;
+  exerciseBodyEl.innerHTML = `
+    <div class="choice-list">
+      ${rightWords.map((w) => `<button class="choice-btn" data-value="${w}">${pair[0]} ${w}</button>`).join("")}
+    </div>
+  `;
+
+  exerciseBodyEl.querySelectorAll(".choice-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const selected = btn.dataset.value;
+      markAnswer(selected === state.current.answer, `常见搭配是 ${pair[0]} ${state.current.answer}`);
+    });
+  });
+}
+
+function nextQuestion() {
+  state.answered = false;
+  feedbackEl.textContent = "";
+  feedbackEl.className = "";
+  nextBtn.classList.add("hidden");
+
+  if (state.mode === "spelling") return buildSpelling();
+  if (state.mode === "past") return buildPast();
+  if (state.mode === "plural") return buildPlural();
+  if (state.mode === "sentence") return buildSentence();
+  if (state.mode === "matching") return buildMatching();
+}
+
+checkinBtn.addEventListener("click", () => {
+  const today = getLocalDateString();
+
+  if (state.lastCheckin === today) {
+    feedbackEl.textContent = "今天已经打卡过啦，继续做题巩固吧！";
+    feedbackEl.className = "good";
     return;
   }
 
-  const answer = state.current.en.toLowerCase();
-  const isFirstTry = state.currentHintLevel === 0;
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterday = getLocalDateString(yesterdayDate);
+  state.streak = state.lastCheckin === yesterday ? state.streak + 1 : 1;
+  state.lastCheckin = today;
 
-  if (input === answer) {
-    onCorrect(isFirstTry);
-    return;
-  }
-  onWrong();
-}
+  localStorage.setItem("streakCount", String(state.streak));
+  localStorage.setItem("lastCheckin", state.lastCheckin);
 
-function handleNext() {
-  if (!state.currentResolved) return;
-  state.queue.shift();
-  state.queueMeta.shift();
-  showCurrentWord();
-  renderStats();
-}
-
-function showHint() {
-  if (!state.current || state.currentResolved) return;
-  state.currentHintLevel += 1;
-  el.hintArea.textContent = getHintText(state.current, state.currentHintLevel);
-}
-
-function startPractice() {
-  buildDailyPlan();
-  showCurrentWord();
-  renderStats();
-}
-
-el.startBtn.addEventListener("click", startPractice);
-el.submitBtn.addEventListener("click", handleSubmit);
-el.nextBtn.addEventListener("click", handleNext);
-el.hintBtn.addEventListener("click", showHint);
-el.spellingInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    handleSubmit();
-  }
+  updateDashboard();
+  feedbackEl.textContent = "打卡成功！明天继续加油 💪";
+  feedbackEl.className = "good";
 });
 
-renderWordConfig();
-renderBadges();
-renderStats();
+nextBtn.addEventListener("click", nextQuestion);
+
+updateDashboard();
+renderWordBank();
+renderModes();

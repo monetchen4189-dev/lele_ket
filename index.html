@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KET 单词拼写打卡</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>KET 单词拼写打卡站</h1>
+      <p>目标：围绕 KET 写作高频词，练拼写、造句与词形变化。</p>
+    </header>
+
+    <section class="dashboard card">
+      <div>
+        <h2>今日进度</h2>
+        <p>已完成题目：<strong id="doneCount">0</strong></p>
+        <p>连续打卡：<strong id="streakCount">0</strong> 天</p>
+      </div>
+      <button id="checkinBtn" type="button">完成今日打卡</button>
+    </section>
+
+    <section class="card">
+      <h2>练习模式</h2>
+      <div class="modes" id="modeButtons"></div>
+    </section>
+
+    <section class="card" id="exerciseCard">
+      <h2 id="exerciseTitle">选择一个模式开始</h2>
+      <p id="exerciseHint">建议每天完成 10-20 题，尤其关注拼写错误词。</p>
+      <div id="exerciseBody"></div>
+      <button id="nextBtn" type="button" class="hidden">下一题</button>
+      <p id="feedback"></p>
+    </section>
+
+    <section class="card">
+      <h2>KET 写作高频词（建议优先背诵）</h2>
+      <div class="word-grid" id="wordGrid"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

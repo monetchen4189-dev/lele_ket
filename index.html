@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KET 拼写乐园</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="hero card">
+      <div>
+        <h1>🌟 KET 拼写乐园</h1>
+        <p>看中文，拼英文！每天按记忆曲线背新词 + 复习旧词。</p>
+      </div>
+      <div class="mascot">🦊</div>
+    </header>
+
+    <section class="stats-grid">
+      <article class="card stat">
+        <h2>今日计划</h2>
+        <p>目标单词：<strong id="dailyTarget">0</strong></p>
+        <p>已完成：<strong id="dailyDone">0</strong></p>
+        <div class="progress-track"><span id="dailyBar"></span></div>
+      </article>
+      <article class="card stat">
+        <h2>今日统计</h2>
+        <p>正确率：<strong id="dailyAccuracy">0%</strong></p>
+        <p>新词/复习：<strong id="dailyMix">0 / 0</strong></p>
+        <p>得分：<strong id="dailyPoints">0</strong> ⭐</p>
+      </article>
+      <article class="card stat">
+        <h2>总体进度</h2>
+        <p>累计掌握：<strong id="masteredCount">0</strong> / <span id="totalWords">0</span></p>
+        <p>学习连续天数：<strong id="streakDays">0</strong> 天</p>
+        <p>已获徽章：<strong id="badgeCount">0</strong></p>
+      </article>
+    </section>
+
+    <section class="card spell-card">
+      <h2 id="promptTitle">准备开始今日拼写</h2>
+      <p id="promptMeta">点击“开始今天练习”</p>
+
+      <div id="hintArea" class="hint-box hidden"></div>
+
+      <label for="spellingInput">请输入英文单词：</label>
+      <input id="spellingInput" type="text" autocomplete="off" placeholder="例如：Monday" />
+
+      <div class="actions">
+        <button id="startBtn" type="button">开始今天练习</button>
+        <button id="hintBtn" type="button" class="secondary" disabled>提示一下</button>
+        <button id="submitBtn" type="button" disabled>提交答案</button>
+        <button id="nextBtn" type="button" class="secondary" disabled>下一个单词</button>
+      </div>
+
+      <p id="feedback" class="feedback"></p>
+      <div id="celebrate" class="celebrate"></div>
+    </section>
+
+    <section class="card">
+      <h2>🎁 激励墙</h2>
+      <div id="badges" class="badge-wall"></div>
+    </section>
+
+    <section class="card">
+      <h2>📚 可扩展单词配置（来自 word-config.js）</h2>
+      <div id="wordConfigSummary"></div>
+      <div id="wordList" class="word-list"></div>
+    </section>
+  </main>
+
+  <script src="word-config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

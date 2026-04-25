@@ -63,3 +63,19 @@ bash scripts/push_to_github.sh
 git remote add origin <你的仓库URL>
 git push -u origin <当前分支名>
 ```
+
+## Merge conflict 快速处理
+
+如果 GitHub 提示有 merge conflict，可以先在本地拉取目标分支并处理：
+
+```bash
+git fetch origin
+git checkout work
+git merge origin/main
+```
+
+处理冲突后，运行下面的检查脚本确认没有残留冲突标记：
+
+```bash
+bash scripts/check_merge_conflicts.sh
+```
